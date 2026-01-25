@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Full Message Steganography</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f7f6; padding: 20px; }
+        .main-card { background: white; padding: 30px; border-radius: 15px; display: inline-block; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        input[type="text"] { width: 300px; padding: 10px; margin: 10px; border: 1px solid #ddd; }
+        .btn { padding: 12px 24px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; text-decoration: none; display: inline-block; font-size: 13.3px;}
+        .blue { background: #007bff; color: white; }
+        .green { background: #28a745; color: white; }
+        .gray { background: #6c757d; color: white; } /* Added gray style for download */
+    </style>
+</head>
+<body>
+    <div class="main-card">
+        <h2>AI Steganography</h2>
+        
+        <p style="color: blue;">{{msg}}</p>
+
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" name="img" accept="image/*"><br>
+            <input type="text" name="text_input" placeholder="Type your full message here...">
+            <br>
+            <button type="submit" name="hide" class="btn blue">1. Hide & Transmit</button>
+            <button type="submit" name="show" class="btn green">2. Retrieve & Speak</button>
+        </form>
+
+        {% if msg == "Full message hidden successfully!" %}
+            <div style="margin-top: 15px; padding: 15px; background: #e2e6ea; border-radius: 8px;">
+                <p><strong>Step 1 Complete!</strong> Download the image to share it:</p>
+                <a href="{{ url_for('download_image') }}" class="btn gray">
+                    ⬇ Download Grayscale Image
+                </a>
+            </div>
+        {% endif %}
+
+        <hr>
+
+        {% if secret %}
+            <div style="margin-top:20px; background:#e8f5e9; padding:20px; border-radius:10px;">
+                <h3>Retrieved Text:</h3>
+                <p style="font-size: 22px; color: #2e7d32;"><strong>{{ secret }}</strong></p>
+                
+                <p>AI Voice Integration:</p>
+                <audio controls autoplay>
+                    <source src="{{ url_for('static', filename='voice.mp3') }}?{{ts}}" type="audio/mpeg">
+                </audio>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

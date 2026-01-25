@@ -1,0 +1,84 @@
+from flask import Flask, render_template, request, send_file
+from PIL import Image
+import numpy as np
+from gtts import gTTS
+import os, time
+
+app = Flask(__name__)
+STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
+if not os.path.exists(STATIC_DIR): os.makedirs(STATIC_DIR)
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    full_message = ""
+    msg = ""
+    ts = str(int(time.time()))
+
+    if request.method == 'POST':
+        
+        # --- 1. HIDE MESSAGE ---
+        if 'hide' in request.form:
+            f = request.files['img']
+            text = request.form['text_input']
+            
+            if f and text:
+                # Convert to Grayscale (L) and resize to 300x300 for consistency
+                img = Image.open(f).convert('L').resize((300, 300))
+                pixels = np.array(img).flatten()
+                
+                # Store length of text in the first pixel
+                pixels[0] = len(text) 
+                
+                # Hide characters
+                for i in range(len(text)):
+                    pixels[i + 1] = ord(text[i])
+                
+                encoded_img = Image.fromarray(pixels.reshape((300, 300)))
+                encoded_img.save(os.path.join(STATIC_DIR, 'output.png'))
+                msg = "Full message hidden successfully!"
+
+        # --- 2. RETRIEVE FROM UPLOADED IMAGE ---
+        elif 'show' in request.form:
+            # Check if user uploaded a file for decoding
+            f = request.files.get('img') 
+            
+            if f and f.filename != '':
+                # Save the uploaded file so we can process it
+                path = os.path.join(STATIC_DIR, 'output.png')
+                f.save(path)
+                
+                # Open the image you just uploaded
+                img = Image.open(path)
+                pixels = np.array(img).flatten()
+                
+                try:
+                    # 1. Read length
+                    length = pixels[0] 
+                    
+                    # 2. Reconstruct string
+                    chars = []
+                    for i in range(1, length + 1):
+                        chars.append(chr(pixels[i]))
+                    full_message = "".join(chars)
+                    
+                    # 3. Speak
+                    tts = gTTS(text=f"The hidden message is: {full_message}", lang='en')
+                    tts.save(os.path.join(STATIC_DIR, 'voice.mp3'))
+                    msg = "Message retrieved from uploaded image!"
+                    
+                except Exception as e:
+                    msg = "Error: Could not decode message. Ensure this is a valid secret image."
+            else:
+                msg = "Please upload the Grayscale Image to retrieve the message."
+
+    return render_template('index.html', msg=msg, secret=full_message, ts=ts)
+
+@app.route('/download')
+def download_image():
+    path = os.path.join(STATIC_DIR, 'output.png')
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True, download_name='secret_grayscale.png')
+    return "No image found!"
+
+if __name__ == '__main__':
+    app.run(debug=True)
