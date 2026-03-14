@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Integrity Checker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        /* Modern CSS Variables */
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f3f4f6;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --success-text: #065f46;
+            --success-bg: #d1fae5;
+            --error-text: #991b1b;
+            --error-bg: #fee2e2;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main);
+            max-width: 850px; 
+            margin: 40px auto; 
+            line-height: 1.6;
+            padding: 0 20px;
+        }
+
+        h2 { text-align: center; color: var(--text-main); margin-bottom: 30px; font-size: 2em; }
+        h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+
+        /* Card Layout */
+        .card { 
+            background: #ffffff; 
+            padding: 25px; 
+            margin-bottom: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-left: 5px solid #ccc;
+        }
+        
+        /* Thematic Card Colors */
+        .card.sender { border-left-color: #3b82f6; }
+        .card.channel { border-left-color: #f59e0b; background-color: #fffbeb; }
+        .card.receiver { border-left-color: #10b981; }
+
+        /* Form Elements */
+        label { font-weight: 600; font-size: 0.9em; color: var(--text-main); display: block; margin-bottom: 5px; }
+        
+        select, textarea { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #d1d5db; 
+            border-radius: 6px; 
+            font-family: 'Courier New', Courier, monospace; 
+            font-size: 14px;
+            margin-bottom: 15px;
+            transition: border-color 0.2s;
+        }
+        
+        select:focus, textarea:focus { 
+            outline: none; 
+            border-color: var(--primary); 
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); 
+        }
+
+        textarea { resize: vertical; min-height: 80px; }
+
+        button { 
+            background-color: var(--primary); 
+            color: white; 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            font-size: 1em;
+            cursor: pointer; 
+            transition: background-color 0.2s, transform 0.1s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+        
+        button:hover { background-color: var(--primary-hover); }
+        button:active { transform: scale(0.98); }
+
+        .channel-hint { font-size: 0.85em; color: var(--text-muted); margin-bottom: 10px; font-style: italic; }
+
+        /* Enhanced Status Board */
+        .status-board { 
+            margin-top: 20px; 
+            background: #ffffff; 
+            border: 1px solid #e5e7eb; 
+            border-radius: 8px; 
+            display: none; 
+            overflow: hidden;
+        }
+        
+        .status-row { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 15px 20px; 
+            border-bottom: 1px solid #e5e7eb; 
+        }
+        
+        .status-row:last-child { 
+            border-bottom: none; 
+            background-color: #f9fafb;
+        }
+
+        .status-label { font-weight: 600; color: var(--text-muted); }
+        
+        /* Badges */
+        .badge { 
+            padding: 6px 12px; 
+            border-radius: 9999px; 
+            font-size: 0.85em; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            letter-spacing: 0.05em;
+        }
+        
+        .badge.safe { background-color: var(--success-bg); color: var(--success-text); }
+        .badge.tampered { background-color: var(--error-bg); color: var(--error-text); }
+        
+        .overall-result { font-size: 1.1em; font-weight: bold; padding: 15px 20px; text-align: center; }
+        .overall-result.safe { background-color: var(--success-bg); color: var(--success-text); border-top: 1px solid #a7f3d0; }
+        .overall-result.tampered { background-color: var(--error-bg); color: var(--error-text); border-top: 1px solid #fecaca; }
+
+    </style>
+</head>
+<body>
+
+    <h2>Message Integrity Simulation</h2>
+
+    <div class="card sender">
+        <h3>1. Sender Side</h3>
+        <div>
+            <label>Hashing Algorithm</label>
+            <select id="algorithm">
+                <option value="MD5">MD5</option>
+                <option value="SHA1">SHA-1</option>
+            </select>
+        </div>
+        <div>
+            <label>Original Message</label>
+            <textarea id="senderMessage" placeholder="Type your secret message here...">Hello Receiver! This is a secure message.</textarea>
+        </div>
+        <button onclick="sendMessage()">Generate Digest & Send Securely</button>
+    </div>
+
+    <div class="card channel">
+        <h3>2. Transmission Channel (Attacker Intercept)</h3>
+        <div class="channel-hint">Data format over network: [Message] ||| [MessageDigest]<br>Try editing the text below to simulate a network attack!</div>
+        <textarea id="channelData"></textarea>
+    </div>
+
+    <div class="card receiver">
+        <h3>3. Receiver Side</h3>
+        <button onclick="receiveMessage()">Receive Data & Verify Integrity</button>
+        
+        <div id="statusBoard" class="status-board">
+            <div class="status-row">
+                <span class="status-label">Message Payload Status:</span>
+                <span id="msgStatus" class="badge"></span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Digest (Hash) Status:</span>
+                <span id="mdStatus" class="badge"></span>
+            </div>
+            <div id="overallResult" class="overall-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const DELIMITER = "|||";
+        let originalMessage = "";
+        let originalHash = "";
+
+        function getHash(message, algorithm) {
+            if (algorithm === "MD5") return CryptoJS.MD5(message).toString();
+            if (algorithm === "SHA1") return CryptoJS.SHA1(message).toString();
+            return "";
+        }
+
+        function sendMessage() {
+            const msg = document.getElementById("senderMessage").value;
+            const algo = document.getElementById("algorithm").value;
+            const md = getHash(msg, algo);
+            
+            // Save originals for simulation verification
+            originalMessage = msg;
+            originalHash = md;
+            
+            // Populate channel data
+            document.getElementById("channelData").value = msg + DELIMITER + md;
+            
+            // Hide receiver board until clicked
+            document.getElementById("statusBoard").style.display = "none";
+        }
+
+        function receiveMessage() {
+            const channelData = document.getElementById("channelData").value;
+            const algo = document.getElementById("algorithm").value; 
+            const statusBoard = document.getElementById("statusBoard");
+
+            const parts = channelData.split(DELIMITER);
+            if (parts.length < 2) {
+                alert("Invalid data format! Missing '|||' delimiter.");
+                return;
+            }
+
+            const receivedHash = parts.pop(); 
+            const receivedMsg = parts.join(DELIMITER);
+            const calculatedHash = getHash(receivedMsg, algo);
+
+            const isMsgModified = (receivedMsg !== originalMessage);
+            const isMdModified = (receivedHash !== originalHash);
+
+            // Update Message Badge
+            const msgStatusEl = document.getElementById("msgStatus");
+            msgStatusEl.innerHTML = isMsgModified ? "Tampered" : "Intact";
+            msgStatusEl.className = isMsgModified ? "badge tampered" : "badge safe";
+
+            // Update Digest Badge
+            const mdStatusEl = document.getElementById("mdStatus");
+            mdStatusEl.innerHTML = isMdModified ? "Tampered" : "Intact";
+            mdStatusEl.className = isMdModified ? "badge tampered" : "badge safe";
+
+            // Update Overall Result Bar
+            const overallEl = document.getElementById("overallResult");
+            if (!isMsgModified && !isMdModified) {
+                overallEl.innerHTML = "CASE 1: Success! Both Message and Digest are valid.";
+                overallEl.className = "overall-result safe";
+            } else if (isMsgModified && !isMdModified) {
+                overallEl.innerHTML = "CASE 2: Alert! The Message was modified during transit.";
+                overallEl.className = "overall-result tampered";
+            } else if (!isMsgModified && isMdModified) {
+                overallEl.innerHTML = "CASE 3: Alert! The Message is intact, but the Digest was modified.";
+                overallEl.className = "overall-result tampered";
+            } else {
+                overallEl.innerHTML = "CRITICAL ALERT: Both Message and Digest were tampered with!";
+                overallEl.className = "overall-result tampered";
+            }
+
+            // Reveal the board
+            statusBoard.style.display = "block";
+        }
+    </script>
+</body>
+</html>

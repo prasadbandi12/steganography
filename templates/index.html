@@ -29,7 +29,7 @@
         {% if msg == "Full message hidden successfully!" %}
             <div style="margin-top: 15px; padding: 15px; background: #e2e6ea; border-radius: 8px;">
                 <p><strong>Step 1 Complete!</strong> Download the image to share it:</p>
-                <a href="{{ url_for('download_image') }}" class="btn gray">
+                <a href="data:image/png;base64,{{ img_data }}" download="secret_grayscale.png" class="btn gray">
                     ⬇ Download Grayscale Image
                 </a>
             </div>
@@ -44,7 +44,7 @@
                 
                 <p>AI Voice Integration:</p>
                 <audio controls autoplay>
-                    <source src="{{ url_for('static', filename='voice.mp3') }}?{{ts}}" type="audio/mpeg">
+                    <source src="data:audio/mpeg;base64,{{ voice_data }}" type="audio/mpeg">
                 </audio>
             </div>
         {% endif %}

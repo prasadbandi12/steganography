@@ -3,6 +3,8 @@ from PIL import Image
 import numpy as np
 from gtts import gTTS
 import os, time
+import base64
+from io import BytesIO
 
 app = Flask(__name__)
 STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
@@ -13,6 +15,8 @@ def index():
     full_message = ""
     msg = ""
     ts = str(int(time.time()))
+    img_data = None
+    voice_data = None
 
     if request.method == 'POST':
         
@@ -34,8 +38,12 @@ def index():
                     pixels[i + 1] = ord(text[i])
                 
                 encoded_img = Image.fromarray(pixels.reshape((300, 300)))
-                encoded_img.save(os.path.join(STATIC_DIR, 'output.png'))
+                img_io = BytesIO()
+                encoded_img.save(img_io, 'PNG')
+                img_io.seek(0)
+                img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
                 msg = "Full message hidden successfully!"
+                img_data = img_base64
 
         # --- 2. RETRIEVE FROM UPLOADED IMAGE ---
         elif 'show' in request.form:
@@ -43,12 +51,8 @@ def index():
             f = request.files.get('img') 
             
             if f and f.filename != '':
-                # Save the uploaded file so we can process it
-                path = os.path.join(STATIC_DIR, 'output.png')
-                f.save(path)
-                
-                # Open the image you just uploaded
-                img = Image.open(path)
+                # Open the image from the uploaded file
+                img = Image.open(f)
                 pixels = np.array(img).flatten()
                 
                 try:
@@ -63,22 +67,19 @@ def index():
                     
                     # 3. Speak
                     tts = gTTS(text=f"The hidden message is: {full_message}", lang='en')
-                    tts.save(os.path.join(STATIC_DIR, 'voice.mp3'))
+                    voice_io = BytesIO()
+                    tts.write_to_fp(voice_io)
+                    voice_io.seek(0)
+                    voice_base64 = base64.b64encode(voice_io.getvalue()).decode('utf-8')
                     msg = "Message retrieved from uploaded image!"
+                    voice_data = voice_base64
                     
                 except Exception as e:
                     msg = "Error: Could not decode message. Ensure this is a valid secret image."
             else:
                 msg = "Please upload the Grayscale Image to retrieve the message."
 
-    return render_template('index.html', msg=msg, secret=full_message, ts=ts)
-
-@app.route('/download')
-def download_image():
-    path = os.path.join(STATIC_DIR, 'output.png')
-    if os.path.exists(path):
-        return send_file(path, as_attachment=True, download_name='secret_grayscale.png')
-    return "No image found!"
+    return render_template('index.html', msg=msg, secret=full_message, ts=ts, img_data=img_data, voice_data=voice_data)
 
 if __name__ == '__main__':
     app.run(debug=True)
